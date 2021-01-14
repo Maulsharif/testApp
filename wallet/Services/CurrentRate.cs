@@ -11,6 +11,7 @@ namespace wallet.Services
             {
                 throw new ArgumentNullException(nameof(code1));
             }
+
             if (string.IsNullOrEmpty(code2))
             {
                 throw new ArgumentNullException(nameof(code2));
@@ -20,12 +21,7 @@ namespace wallet.Services
             var client = new RestClient(apiAddress);
             var request = new RestRequest(Method.GET);
             IRestResponse response = await client.ExecuteAsync(request);
-
-            var data = response;
-
-            return data;
+            return response;
         }
-
     }
-    
 }

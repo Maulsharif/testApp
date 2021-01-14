@@ -2,14 +2,14 @@
 
 namespace wallet.Services
 {
-    public class RateDeserilizer
+    public class Deserializer
     { 
         
-        public RateDeserilizer(string json, string code1, string code2)
+        public Deserializer(string json, string code1, string code2)
         {
             JObject jObject = JObject.Parse(json);
             JToken jCur = jObject["rates"];
-            JToken jRate = jCur[$"{code1+code2}"];
+            JToken jRate = jCur[$"{code1.ToUpper()+code2.ToUpper()}"];
             Rate = (decimal) jRate["rate"];
            
         }

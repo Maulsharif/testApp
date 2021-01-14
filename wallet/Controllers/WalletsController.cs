@@ -3,93 +3,108 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using wallet.Models;
 using wallet.Services;
 
 namespace wallet.Controllers
-{ 
-    [Route("[controller]/[action]")]
+{
+    [Route("[action]/")]
     [ApiController]
     public class WalletsController : Controller
     {
-      private  static List<Wallet> wallets =new List<Wallet>(){  new Wallet()
-          {
-              Id = 1, Accounts = new List<Account>()
-              {new Account(){Currency = "EUR", Sum = 2000}, 
-                  new Account(){Currency = "USD", Sum = 300},
-                  new Account(){Currency = "RUB", Sum = 15000} }
-          },
-          new Wallet()
-          {
-              Id = 2, Accounts = new List<Account>()
-              {new Account(){ Currency = "EUR", Sum = 0}, 
-                  new Account(){Currency = "USD", Sum = 3000},
-                  new Account(){  Currency = "RUB", Sum = 45000} }
-          }};
-      
-      
+        private readonly WalletContext _context;
+        public WalletsController(WalletContext context)
+        {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+        }
+
         [HttpGet("{id}")]
-        public ActionResult<Wallet> Get(int id)
+        public async Task<ActionResult<WalletModel>> Get(int id)
         {
-            var res= wallets.FirstOrDefault(p => p.Id == id);
+            try
+            {
+                var list = await _context.Wallets.Where(p => p.UserId == id).ToListAsync();
+                return GetModel(list);
+            }
+            catch (ArgumentOutOfRangeException e)
+            {
+                return NoContent();
+            }
+        }
 
-            if (res == null)
+        [HttpPost("{id}/{sum}/{cur}")]
+        public async Task<IActionResult> Add(int id, decimal sum, string cur)
+        {
+            Wallet wallet = _context.Wallets.FirstOrDefault(p => p.UserId == id && p.Currency== cur.ToUpper());
+            
+            if (wallet == null)
+            {
+                return BadRequest("Wallet wasn't found");
+            }
+
+            wallet.Sum += sum;
+            _context.Entry(wallet).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPost("{id}/{sum}/{cur}")]
+        public async Task<IActionResult> Withdraw(int id, decimal sum, string cur)
+        {
+            Wallet wallet = _context.Wallets.FirstOrDefault(p => p.UserId == id &&  p.Currency== cur.ToUpper());
+            if (wallet == null)
             {
                 return NotFound();
             }
 
-            return res;
-        }
-        
-        
-        [HttpPost("{id}/{sum}/{currency}")]
-        public ActionResult Add(int id, decimal sum, int currencyCode)
-        {
-            var res= wallets.FirstOrDefault(p => p.Id == id)?.Accounts[0];
-            if (res == null)
+            if (wallet.Sum < sum)
             {
-                return NotFound();
+                return BadRequest("Not enough money!");
             }
-        
-            res.Sum += sum;
-        
-            return StatusCode(200, "succsses!");
+
+            wallet.Sum -= sum;
+            _context.Entry(wallet).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            return Ok();
         }
-        
-        [HttpPost("{id}/{sum}/{currency}")]
-        public ActionResult Withdraw(int id, decimal sum, int currencyCode)
-        {
-            var res= wallets.FirstOrDefault(p => p.Id == id)?.Accounts[0];
-            if (res == null)
-            {
-                return NotFound();
-            }
-        
-            res.Sum -= sum;
-        
-            return StatusCode(200, "succsses!");
-        }
-        
+
         [HttpPost("{id}/{sum}/{from}/{to}")]
-        public ActionResult Transfer(int id, decimal sum, int from,  int to)
+        public async Task<IActionResult> Transfer(int id, decimal sum, string from, string to)
         {
-            var res= wallets.FirstOrDefault(p => p.Id == id)?.Accounts[0];
-            if (res == null)
+            Wallet walletFrom = _context.Wallets.FirstOrDefault(p => p.UserId == id && p.Currency == from.ToUpper());
+            Wallet walletTo = _context.Wallets.FirstOrDefault(p => p.UserId == id && p.Currency == to.ToUpper());
+            if (walletFrom == null || walletTo == null)
             {
-                return NotFound();
+                return BadRequest("User wasn't found!");
             }
 
-             var data =CurrentRate.GetRateAsync("USD", "RUB");
-             RateDeserilizer rate =new RateDeserilizer(data.Result.Content,"USD", "RUB");
-             Console.WriteLine( rate.Rate);
-          
-        
-            return StatusCode(200, "succsses!");
+            if (walletFrom.Sum < sum)
+            {
+                return BadRequest("Not enough money!");
+            }
+
+            var res = CurrentRate.GetRateAsync(from.ToUpper(), to.ToUpper()).Result.Content;
+            Deserializer deserializer = new Deserializer(res, from.ToUpper(), to.ToUpper());
+
+            walletFrom.Sum -= sum;
+            walletTo.Sum += sum * deserializer.Rate;
+            _context.Entry(walletFrom).State = EntityState.Modified;
+            _context.Entry(walletTo).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            return Ok();
         }
-        
-       
-        
-        
-        
+
+        public WalletModel GetModel(List<Wallet> wallets)
+        {
+            WalletModel model = new WalletModel()
+                {UserId = wallets[0].UserId, AccountModels = new AccountModel[wallets.Count]};
+            for (var i = 0; i < wallets.Count; i++)
+            {
+                model.AccountModels[i] = new AccountModel() {Currency = wallets[i].Currency, Sum = wallets[i].Sum};
+            }
+            
+            return model;
+        }
     }
 }
