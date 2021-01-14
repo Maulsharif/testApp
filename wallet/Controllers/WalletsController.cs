@@ -46,7 +46,7 @@ namespace wallet.Controllers
             wallet.Sum += sum;
             _context.Entry(wallet).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            return Ok();
+            return RedirectToAction("Get", "Wallets", new {id = id});
         }
 
         [HttpPost("{id}/{sum}/{cur}")]
@@ -66,7 +66,7 @@ namespace wallet.Controllers
             wallet.Sum -= sum;
             _context.Entry(wallet).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            return Ok();
+            return RedirectToAction("Get", "Wallets", new {id = id});
         }
 
         [HttpPost("{id}/{sum}/{from}/{to}")]
@@ -92,7 +92,7 @@ namespace wallet.Controllers
             _context.Entry(walletFrom).State = EntityState.Modified;
             _context.Entry(walletTo).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            return Ok();
+            return RedirectToAction("Get", "Wallets", new {id = id});
         }
 
         public WalletModel GetModel(List<Wallet> wallets)
