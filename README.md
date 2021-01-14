@@ -17,6 +17,6 @@
    https://localhost:5001/transfer/2/1500/usd/eur
 
 # Запуск приложения 
-   cd wallet
-   dotnet ef database update
-   dotnet run 
+   cd wallet<br>
+   dotnet ef database update<br>
+   dotnet run <br>
